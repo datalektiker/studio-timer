@@ -32,7 +32,7 @@ Servern startar på port 4000 (ändra med `PORT=XXXX npm start`).
 Admin-panelen är lösenordsskyddad via HTTP Basic Auth. Sätt miljövariabeln `ADMIN_PASS` till önskat lösenord. Om variabeln saknas är panelen öppen (praktiskt lokalt).
 
 ```bash
-ADMIN_PASS=hemligt npm start
+ADMIN_PASS=hemligt
 ```
 
 ## API — Stream Deck / Companion
