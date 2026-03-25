@@ -209,6 +209,18 @@ app.get('/api/broadcast/stop', (req, res) => {
   res.json({ ok: true, ...getState() });
 });
 
+app.get('/api/broadcast/pause', (req, res) => {
+  pauseBroadcast();
+  res.json({ ok: true, ...getState() });
+});
+
+app.get('/api/broadcast/resume', (req, res) => {
+  const seconds = parseInt(req.query.seconds) || 30;
+  setResumeDuration(seconds);
+  startResumeCountdown();
+  res.json({ ok: true, ...getState() });
+});
+
 app.get('/api/mode', (req, res) => {
   setDisplayMode(req.query.mode);
   res.json({ ok: true, ...getState() });
