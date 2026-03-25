@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Studio Timer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0c;
+      --text-idle: #e8e4df;
+      --text-warn: #e5a644;
+      --text-danger: #d94f4f;
+      --text-dim: #444;
+      --glow-idle: rgba(232, 228, 223, 0.04);
+      --glow-warn: rgba(229, 166, 68, 0.08);
+      --glow-danger: rgba(217, 79, 79, 0.10);
+    }
+
+
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--bg);
+      overflow: hidden;
+      cursor: none;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.5) 100%);
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .timer-wrap {
+      text-align: center;
+      transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .timer-display {
+      font-size: clamp(8rem, 22vw, 28rem);
+      font-weight: 300;
+      letter-spacing: 0.04em;
+      line-height: 1;
+      color: var(--text-idle);
+      transition: color 1.2s ease, text-shadow 1.2s ease;
+      text-shadow: 0 0 80px var(--glow-idle);
+    }
+
+    .timer-display.warn {
+      color: var(--text-warn);
+      text-shadow: 0 0 100px var(--glow-warn);
+    }
+
+    .timer-display.danger {
+      color: var(--text-danger);
+      text-shadow: 0 0 120px var(--glow-danger);
+    }
+
+    .timer-display.danger.fast {
+      animation: pulse-danger 0.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse-danger {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.65; }
+    }
+
+    .label {
+      font-size: clamp(0.8rem, 2vw, 1.6rem);
+      font-weight: 400;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      opacity: 0;
+      transition: opacity 0.8s ease, color 1.2s ease;
+      color: var(--text-dim);
+    }
+
+    .label.visible { opacity: 1; }
+    .label.warn { color: var(--text-warn); opacity: 0.7; }
+    .label.danger { color: var(--text-danger); opacity: 1; }
+
+    .suffix {
+      font-size: 0.35em;
+      font-weight: 400;
+      opacity: 0.5;
+      margin-left: 0.1em;
+      vertical-align: baseline;
+    }
+
+    .label-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6em;
+      margin-top: 1.5rem;
+    }
+
+    .label { margin-top: 0; }
+
+    .live-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--text-danger);
+      flex-shrink: 0;
+      display: none;
+    }
+
+    .live-dot.visible { display: block; }
+
+    .typing-dots {
+      display: none;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+
+    .typing-dots.visible { display: flex; }
+
+    .typing-dots span {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--text-dim);
+      animation: typing-bounce 1.2s ease-in-out infinite;
+    }
+
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes typing-bounce {
+      0%, 60%, 100% { opacity: 0.2; transform: translateY(0); }
+      30% { opacity: 1; transform: translateY(-4px); }
+    }
+
+  </style>
+</head>
+<body>
+  <div class="timer-wrap">
+    <div class="timer-display" id="display">—</div>
+    <div class="label-row">
+      <div class="live-dot" id="liveDot"></div>
+      <div class="typing-dots" id="pausedDot"><span></span><span></span><span></span></div>
+      <div class="label" id="label"></div>
+    </div>
+  </div>
+
+  <script>
+    const display = document.getElementById('display');
+    const label = document.getElementById('label');
+    const pausedDot = document.getElementById('pausedDot');
+    const liveDot = document.getElementById('liveDot');
+
+    let ending = false;
+    let endingTimeout = null;
+
+    let state = {
+      phase: 'idle',
+      displayMode: 'elapsed',
+      preshowTotal: 30,
+      preshowRemaining: 30,
+      elapsedSeconds: 0,
+      segmentTotal: 600,
+      segmentRemaining: 600,
+      segmentRunning: false,
+      segmentOvertime: false,
+    };
+
+    function pad(n) { return String(n).padStart(2, '0'); }
+
+    function formatElapsed(secs) {
+      if (secs < 60) return `0:${pad(secs)}`;
+      return Math.floor(secs / 60).toString();
+    }
+
+    function getElapsedSuffix(secs) {
+      return secs >= 60 ? '<span class="suffix">min</span>' : '';
+    }
+
+    function formatCountdown(secs) {
+      const abs = Math.abs(secs);
+      const prefix = secs < 0 ? '+' : '';
+      if (secs < 0 || secs <= 60) {
+        const m = Math.floor(abs / 60);
+        const s = abs % 60;
+        return `${prefix}${m}:${pad(s)}`;
+      }
+      return Math.ceil(secs / 60).toString();
+    }
+
+    function formatClock() {
+      const now = new Date();
+      return `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    }
+
+    function getCountdownSuffix(secs) {
+      if (secs < 0 || secs <= 60) return '';
+      return '<span class="suffix">min</span>';
+    }
+
+    // Håll klockan levande i idle- och clock-läge
+    setInterval(() => {
+      if (ending) return;
+      if (state.phase === 'idle' || (state.phase === 'broadcast' && state.displayMode === 'clock')) {
+        display.innerHTML = formatClock();
+      }
+    }, 1000);
+
+    function showEnding() {
+      ending = true;
+      display.className = 'timer-display danger fast';
+      label.className = 'label visible danger';
+      label.textContent = 'sändning avslutas';
+      pausedDot.classList.remove('visible');
+
+      if (endingTimeout) clearTimeout(endingTimeout);
+      endingTimeout = setTimeout(() => {
+        ending = false;
+        display.className = 'timer-display';
+        render();
+      }, 3000);
+    }
+
+    function showResuming() {
+      ending = true;
+      display.className = 'timer-display warn fast';
+      label.className = 'label visible warn';
+      label.textContent = 'live';
+      pausedDot.classList.remove('visible');
+
+      if (endingTimeout) clearTimeout(endingTimeout);
+      endingTimeout = setTimeout(() => {
+        ending = false;
+        render();
+      }, 1500);
+    }
+
+    function render() {
+      if (ending) return;
+
+      const { phase, displayMode, broadcastPaused, preshowRemaining, resumeRemaining,
+              elapsedSeconds, segmentRemaining, segmentRunning, segmentOvertime } = state;
+
+      display.className = 'timer-display';
+      label.className = 'label';
+      pausedDot.classList.remove('visible');
+      liveDot.classList.remove('visible');
+
+      if (phase === 'resuming') {
+        display.innerHTML = resumeRemaining.toString();
+        label.textContent = 'strax live';
+        label.classList.add('visible');
+
+        if (resumeRemaining <= 5) {
+          display.classList.add('danger', 'fast');
+          label.classList.add('danger');
+        } else if (resumeRemaining <= 10) {
+          display.classList.add('warn');
+          label.classList.add('warn');
+        }
+
+      } else if (phase === 'preshow') {
+        display.innerHTML = preshowRemaining.toString();
+        label.textContent = 'live om';
+        label.classList.add('visible');
+
+        if (preshowRemaining <= 5) {
+          display.classList.add('danger', 'fast');
+          label.classList.add('danger');
+        } else if (preshowRemaining <= 10) {
+          display.classList.add('warn');
+          label.classList.add('warn');
+        }
+
+      } else if (phase === 'broadcast') {
+        label.textContent = broadcastPaused ? 'pausad' : 'live';
+        label.classList.add('visible');
+        if (!broadcastPaused) {
+          label.classList.add('danger');
+          liveDot.classList.add('visible');
+        }
+        if (broadcastPaused) pausedDot.classList.add('visible');
+
+        if (displayMode === 'elapsed') {
+          display.innerHTML = formatElapsed(elapsedSeconds) + getElapsedSuffix(elapsedSeconds);
+
+        } else if (displayMode === 'countdown') {
+          const secs = segmentRemaining;
+          display.innerHTML = formatCountdown(secs) + getCountdownSuffix(secs);
+
+          if (secs < 0) {
+            display.classList.add('danger');
+            label.textContent = 'tiden är ute';
+            label.classList.add('visible', 'danger');
+          } else if (secs <= 60 && segmentRunning) {
+            display.classList.add('warn');
+            label.textContent = 'sista minuten';
+            label.classList.add('visible', 'warn');
+          }
+
+        } else if (displayMode === 'clock') {
+          display.innerHTML = formatClock();
+        }
+
+      } else {
+        // idle — visa lokal tid
+        display.innerHTML = formatClock();
+        label.textContent = 'standby';
+        label.classList.add('visible');
+      }
+    }
+
+    function connect() {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const ws = new WebSocket(`${proto}//${location.host}`);
+
+      ws.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === 'state') {
+            const oldPhase = state.phase;
+            const oldPaused = state.broadcastPaused;
+            state = { ...state, ...msg };
+
+            if (oldPhase !== 'idle' && state.phase === 'idle') {
+              showEnding();
+            } else if (oldPaused && oldPhase === 'broadcast' && state.phase === 'broadcast' && !state.broadcastPaused) {
+              // Direktåterupptagning (inte efter nedräkning)
+              showResuming();
+            } else {
+              render();
+            }
+          }
+        } catch (err) {}
+      };
+
+      ws.onclose = () => setTimeout(connect, 2000);
+      ws.onerror = () => ws.close();
+    }
+
+    render();
+    connect();
+  </script>
+</body>
+</html>

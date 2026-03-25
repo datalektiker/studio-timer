@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Studio Timer — Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #111114;
+      --surface: #1a1a1f;
+      --border: #2a2a30;
+      --text: #ccc8c0;
+      --text-dim: #666;
+      --accent: #e8e4df;
+      --green: #5cb87a;
+      --amber: #e5a644;
+      --red: #d94f4f;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Sans', sans-serif;
+      padding: 3rem 2rem;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container { max-width: 420px; width: 100%; }
+
+    h1 {
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 300;
+      font-size: 1.1rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 2.5rem;
+    }
+
+    /* Status */
+    .status-bar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    .status-phase {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 0.4rem;
+    }
+
+    .status-phase.on-air { color: var(--green); }
+    .status-phase.preshow { color: var(--amber); }
+
+    .status-time {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 3rem;
+      font-weight: 300;
+      letter-spacing: 0.05em;
+      color: var(--accent);
+      transition: color 0.5s ease;
+    }
+
+    .status-time.warn { color: var(--amber); }
+    .status-time.danger { color: var(--red); }
+
+    .status-sub {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      margin-top: 0.3rem;
+      min-height: 1.2em;
+    }
+
+    .status-label {
+      font-size: 0.8rem;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+      margin-top: 0.5rem;
+    }
+
+    .dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+      background: var(--text-dim);
+    }
+
+    .dot.running { background: var(--green); }
+    .dot.preshow { background: var(--amber); animation: blink 1s infinite; }
+    .dot.overtime { background: var(--red); animation: blink 1s infinite; }
+
+    @keyframes blink { 50% { opacity: 0.3; } }
+
+    /* Sections */
+    .section { margin-bottom: 1.5rem; }
+    .section[hidden] { display: none; }
+
+    .section-title {
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 0.8rem;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 1.5rem 0;
+    }
+
+    /* Button grids */
+    .btn-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .btn-row.cols-4 { grid-template-columns: repeat(4, 1fr); }
+    .btn-row.cols-2 { grid-template-columns: repeat(2, 1fr); }
+
+    .btn-row button, .btn-small {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem;
+      color: var(--text);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-row button:hover { background: var(--border); color: var(--accent); }
+    .btn-row button:active { transform: scale(0.96); }
+
+    /* Mode buttons + preshow/resume/segment buttons */
+    button.mode-btn.active, button.preshow-btn.active, button.resume-btn.active, button.segment-btn.active {
+      background: rgba(232, 228, 223, 0.1);
+      border-color: rgba(232, 228, 223, 0.4);
+      color: var(--accent);
+    }
+
+    /* Full-width action buttons */
+    .btn-full {
+      width: 100%;
+      padding: 1rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .btn-full:active { transform: scale(0.98); }
+    .btn-full:last-child { margin-bottom: 0; }
+
+    .btn-amber {
+      background: rgba(229, 166, 68, 0.12);
+      border-color: rgba(229, 166, 68, 0.3);
+      color: var(--amber);
+    }
+    .btn-amber:hover { background: rgba(229, 166, 68, 0.2); }
+
+    .btn-green {
+      background: rgba(92, 184, 122, 0.12);
+      border-color: rgba(92, 184, 122, 0.3);
+      color: var(--green);
+    }
+    .btn-green:hover { background: rgba(92, 184, 122, 0.2); }
+
+    .btn-red {
+      background: rgba(217, 79, 79, 0.1);
+      border-color: rgba(217, 79, 79, 0.25);
+      color: var(--red);
+    }
+    .btn-red:hover { background: rgba(217, 79, 79, 0.18); }
+
+    .btn-dim {
+      background: var(--surface);
+      color: var(--text-dim);
+    }
+    .btn-dim:hover { background: var(--border); color: var(--text); }
+
+    /* Custom time */
+    .custom-time {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .custom-time input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      color: var(--text);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.9rem;
+      outline: none;
+    }
+
+    .custom-time input::placeholder { color: var(--text-dim); }
+    .custom-time input:focus { border-color: var(--text-dim); }
+
+    .custom-time button {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1.1rem;
+      color: var(--text);
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .custom-time button:hover { background: var(--border); }
+
+    /* API */
+    .api-info {
+      margin-top: 3rem;
+      padding: 1.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    .api-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.4rem 0;
+    }
+
+    .api-row code {
+      font-family: 'IBM Plex Mono', monospace;
+      color: var(--text-dim);
+      font-size: 0.75rem;
+    }
+
+    .api-row span { color: var(--text-dim); font-size: 0.75rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2.5rem;">
+      <h1 style="margin-bottom:0;">Studio Timer</h1>
+    </div>
+
+    <!-- Status -->
+    <div class="status-bar">
+      <div class="status-phase" id="statusPhase">STANDBY</div>
+      <div class="status-time" id="statusTime">—</div>
+      <div class="status-sub" id="statusSub"></div>
+      <div class="status-label">
+        <span class="dot" id="statusDot"></span>
+        <span id="statusText">stoppad</span>
+      </div>
+    </div>
+
+    <!-- IDLE: pre-show + starta direkt -->
+    <div class="section" id="section-idle">
+      <div class="section-title">Pre-show nedräkning</div>
+      <div class="btn-row">
+        <button class="preshow-btn" data-seconds="10" onclick="setPreshow(10)">10 sek</button>
+        <button class="preshow-btn" data-seconds="30" onclick="setPreshow(30)">30 sek</button>
+        <button class="preshow-btn" data-seconds="60" onclick="setPreshow(60)">60 sek</button>
+      </div>
+      <button class="btn-full btn-amber" onclick="send('preshow.start')">Starta nedräkning</button>
+      <button class="btn-full btn-dim" onclick="send('broadcast.start')">Hoppa över — starta direkt</button>
+    </div>
+
+    <!-- PRESHOW: väntar på att övergå -->
+    <div class="section" id="section-preshow" hidden>
+      <button class="btn-full btn-green" onclick="send('broadcast.start')">Hoppa till sändning nu</button>
+    </div>
+
+    <!-- BROADCAST: pausa + avsluta -->
+    <div class="section" id="section-broadcast" hidden>
+      <div id="broadcast-running">
+        <button class="btn-full btn-amber" onclick="send('broadcast.pause')">Pausa</button>
+        <button class="btn-full btn-red" onclick="send('broadcast.stop')">Avsluta sändning</button>
+      </div>
+      <div id="broadcast-paused" hidden>
+        <div class="section-title">Återuppta efter</div>
+        <div class="btn-row" style="margin-bottom:8px;">
+          <button class="resume-btn" data-seconds="5" onclick="setResume(5)">5 sek</button>
+          <button class="resume-btn" data-seconds="10" onclick="setResume(10)">10 sek</button>
+          <button class="resume-btn" data-seconds="30" onclick="setResume(30)">30 sek</button>
+        </div>
+        <button class="btn-full btn-amber" onclick="send('resume.countdown')">Starta nedräkning</button>
+        <button class="btn-full btn-green" onclick="send('resume.direct')">Återuppta direkt</button>
+        <button class="btn-full btn-red" onclick="send('broadcast.stop')">Avsluta sändning</button>
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- Visningsläge — döljs under sändning -->
+    <div class="section" id="section-mode">
+      <div class="section-title">Visningsläge</div>
+      <div class="btn-row">
+        <button class="mode-btn" data-mode="elapsed" onclick="setMode('elapsed')">Uppräkning</button>
+        <button class="mode-btn" data-mode="countdown" onclick="setMode('countdown')">Nedräkning</button>
+        <button class="mode-btn" data-mode="clock" onclick="setMode('clock')">Klocka</button>
+      </div>
+    </div>
+
+    <!-- Segment-timer — visas bara i nedräkningsläge -->
+    <div class="section" id="section-segment" hidden>
+      <hr style="margin-top:0;">
+      <div class="section-title" style="margin-top:1.5rem;">Segment-timer</div>
+      <div class="btn-row cols-4">
+        <button class="segment-btn" data-minutes="5"  onclick="setSegment(5)">5 min</button>
+        <button class="segment-btn" data-minutes="10" onclick="setSegment(10)">10 min</button>
+        <button class="segment-btn" data-minutes="15" onclick="setSegment(15)">15 min</button>
+        <button class="segment-btn" data-minutes="20" onclick="setSegment(20)">20 min</button>
+        <button class="segment-btn" data-minutes="25" onclick="setSegment(25)">25 min</button>
+        <button class="segment-btn" data-minutes="30" onclick="setSegment(30)">30 min</button>
+        <button class="segment-btn" data-minutes="45" onclick="setSegment(45)">45 min</button>
+        <button class="segment-btn" data-minutes="60" onclick="setSegment(60)">60 min</button>
+      </div>
+      <div class="custom-time">
+        <input type="number" id="customMin" placeholder="Minuter" min="1" max="999">
+        <button id="customSetBtn" onclick="setCustom()">Sätt</button>
+      </div>
+    </div>
+
+    <!-- API -->
+    <div class="api-info">
+      <div class="section-title" style="margin-top:0;">Companion / Stream Deck</div>
+      <div class="api-row"><code>/api/preshow/set?seconds=N</code><span>Sätt pre-show tid</span></div>
+      <div class="api-row"><code>/api/preshow/start</code><span>Starta pre-show</span></div>
+      <div class="api-row"><code>/api/broadcast/start</code><span>Starta sändning</span></div>
+      <div class="api-row"><code>/api/broadcast/stop</code><span>Avsluta sändning</span></div>
+      <div class="api-row"><code>/api/mode?mode=X</code><span>elapsed / countdown / clock</span></div>
+      <div class="api-row"><code>/api/set?minutes=N</code><span>Sätt segment-tid</span></div>
+      <div class="api-row"><code>/api/start</code><span>Starta segment</span></div>
+      <div class="api-row"><code>/api/stop</code><span>Stoppa segment</span></div>
+      <div class="api-row"><code>/api/toggle</code><span>Toggla segment</span></div>
+      <div class="api-row"><code>/api/reset</code><span>Återställ segment</span></div>
+    </div>
+  </div>
+
+  <script>
+    let ws;
+    let currentState = null;
+
+    const statusPhase = document.getElementById('statusPhase');
+    const statusTime  = document.getElementById('statusTime');
+    const statusSub   = document.getElementById('statusSub');
+    const statusDot   = document.getElementById('statusDot');
+    const statusText  = document.getElementById('statusText');
+
+    function pad(n) { return String(n).padStart(2, '0'); }
+
+    function fmtSecs(secs) {
+      const abs = Math.abs(secs);
+      const m = Math.floor(abs / 60);
+      const s = abs % 60;
+      return `${secs < 0 ? '+' : ''}${m}:${pad(s)}`;
+    }
+
+    function fmtElapsed(secs) {
+      return `${Math.floor(secs / 60)}:${pad(secs % 60)}`;
+    }
+
+    function fmtClock() {
+      const n = new Date();
+      return `${pad(n.getHours())}:${pad(n.getMinutes())}`;
+    }
+
+    // Håll klockan levande i admin (standby + clock-läge)
+    setInterval(() => {
+      if (!currentState) return;
+      if (currentState.phase === 'idle' ||
+          (currentState.phase === 'broadcast' && currentState.displayMode === 'clock')) {
+        statusTime.textContent = fmtClock();
+      }
+    }, 1000);
+
+    function renderAdmin(s) {
+      currentState = s;
+
+      // Visa rätt kontrollsektion
+      const inBroadcast = s.phase === 'broadcast' || s.phase === 'resuming';
+      document.getElementById('section-idle').hidden      = s.phase !== 'idle';
+      document.getElementById('section-preshow').hidden   = s.phase !== 'preshow';
+      document.getElementById('section-broadcast').hidden = !inBroadcast;
+      document.getElementById('section-mode').hidden      = inBroadcast;
+
+      if (inBroadcast) {
+        const paused = s.broadcastPaused;
+        const resuming = s.phase === 'resuming';
+        document.getElementById('broadcast-running').hidden = paused || resuming;
+        document.getElementById('broadcast-paused').hidden  = !paused || resuming;
+
+        document.querySelectorAll('.resume-btn').forEach(btn => {
+          btn.classList.toggle('active', parseInt(btn.dataset.seconds) === s.resumeTotal);
+        });
+      }
+      document.getElementById('section-segment').hidden  = inBroadcast || s.displayMode !== 'countdown';
+
+      // Fas-etikett
+      statusPhase.className = 'status-phase';
+      if (s.phase === 'broadcast') {
+        statusPhase.textContent = s.broadcastPaused ? 'PAUSAD' : 'LIVE';
+        statusPhase.classList.add('on-air');
+      } else if (s.phase === 'resuming') {
+        statusPhase.textContent = 'ÅTERUPPTAR';
+        statusPhase.classList.add('preshow');
+      } else if (s.phase === 'preshow') {
+        statusPhase.textContent = 'NEDRÄKNING';
+        statusPhase.classList.add('preshow');
+      } else {
+        statusPhase.textContent = 'STANDBY';
+      }
+
+      // Primär tid — speglar visningsläget
+      statusTime.className = 'status-time';
+      statusSub.textContent = '';
+
+      if (s.phase === 'preshow') {
+        statusTime.textContent = s.preshowRemaining + 's';
+        if (s.preshowRemaining <= 5) statusTime.classList.add('danger');
+        else if (s.preshowRemaining <= 10) statusTime.classList.add('warn');
+      } else if (s.phase === 'resuming') {
+        statusTime.textContent = s.resumeRemaining + 's';
+        if (s.resumeRemaining <= 5) statusTime.classList.add('danger');
+        else if (s.resumeRemaining <= 10) statusTime.classList.add('warn');
+      } else if (s.phase === 'broadcast') {
+        if (s.displayMode === 'elapsed') {
+          statusTime.textContent = fmtElapsed(s.elapsedSeconds);
+        } else if (s.displayMode === 'countdown') {
+          statusTime.textContent = fmtSecs(s.segmentRemaining);
+          if (s.segmentRemaining < 0) statusTime.classList.add('danger');
+          else if (s.segmentRemaining <= 60 && s.segmentRunning) statusTime.classList.add('warn');
+          statusSub.textContent = '';
+        } else if (s.displayMode === 'clock') {
+          statusTime.textContent = fmtClock();
+        }
+      } else {
+        // idle — visa lokal tid, precis som studiodisplayen
+        statusTime.textContent = fmtClock();
+      }
+
+      // Statusdot
+      statusDot.className = 'dot';
+      if (s.phase === 'broadcast') {
+        if (s.segmentOvertime) {
+          statusDot.classList.add('overtime');
+          statusText.textContent = 'övertid';
+        } else if (s.broadcastPaused) {
+          statusDot.classList.add('preshow');
+          statusText.textContent = 'pausad';
+        } else {
+          statusDot.classList.add('running');
+          statusText.textContent = 'live';
+        }
+      } else if (s.phase === 'resuming') {
+        statusDot.classList.add('preshow');
+        statusText.textContent = 'återupptar';
+      } else if (s.phase === 'preshow') {
+        statusDot.classList.add('preshow');
+        statusText.textContent = 'nedräkning';
+      } else if (s.segmentRunning) {
+        statusDot.classList.add('running');
+        statusText.textContent = 'kör';
+      } else {
+        statusText.textContent = 'stoppad';
+      }
+
+      // Lägesknapparna
+      document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === s.displayMode);
+      });
+
+      // Pre-show knappar
+      document.querySelectorAll('.preshow-btn').forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.seconds) === s.preshowTotal);
+      });
+
+      // Segment-knappar
+      document.querySelectorAll('.segment-btn').forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.minutes) * 60 === s.segmentTotal);
+      });
+
+      // Tema-toggle
+    }
+
+    function send(action, extra) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action, ...extra }));
+      }
+    }
+
+    function togglePause() {
+      if (currentState && currentState.broadcastPaused) send('broadcast.resume');
+      else send('broadcast.pause');
+    }
+
+    function setResume(seconds) { send('resume.set', { seconds }); }
+    function setPreshow(seconds) { send('preshow.set', { seconds }); }
+    function setMode(mode) { send('mode', { mode }); }
+    function setSegment(minutes) {
+      send('segment.set', { minutes });
+      document.getElementById('customMin').value = '';
+    }
+
+    function setCustom() {
+      const input = document.getElementById('customMin');
+      const m = parseInt(input.value);
+      if (!m || m < 1) return;
+      send('segment.set', { minutes: m });
+      const btn = document.getElementById('customSetBtn');
+      btn.textContent = '✓';
+      btn.style.color = 'var(--green)';
+      setTimeout(() => {
+        btn.textContent = 'Sätt';
+        btn.style.color = '';
+      }, 1500);
+    }
+
+    document.getElementById('customMin').addEventListener('keydown', e => {
+      if (e.key === 'Enter') setCustom();
+    });
+
+    function connect() {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${proto}//${location.host}`);
+      ws.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === 'state') renderAdmin(msg);
+        } catch (err) {}
+      };
+      ws.onclose = () => setTimeout(connect, 2000);
+      ws.onerror = () => ws.close();
+    }
+
+    connect();
+  </script>
+</body>
+</html>
