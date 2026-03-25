@@ -194,6 +194,8 @@ app.get('/api/preshow/set', (req, res) => {
 });
 
 app.get('/api/preshow/start', (req, res) => {
+  const seconds = parseInt(req.query.seconds);
+  if (seconds && seconds >= 1) setPreshowDuration(seconds);
   startPreshow();
   res.json({ ok: true, ...getState() });
 });
