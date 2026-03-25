@@ -11,7 +11,7 @@
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg: #0a0a0c;
+      --bg: #050505;
       --text-idle: #e8e4df;
       --text-warn: #e5a644;
       --text-danger: #d94f4f;
@@ -40,10 +40,12 @@
       content: '';
       position: fixed;
       inset: 0;
-      background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.5) 100%);
+      background: radial-gradient(ellipse at center, rgba(0,0,0,0) 30%, rgba(0,0,0,0.05) 45%, rgba(0,0,0,0.15) 58%, rgba(0,0,0,0.28) 70%, rgba(0,0,0,0.40) 82%, rgba(0,0,0,0.50) 100%);
       pointer-events: none;
       z-index: 10;
     }
+
+    body.no-vignette::before { display: none; }
 
     .timer-wrap {
       text-align: center;
@@ -158,6 +160,10 @@
   </div>
 
   <script>
+    if (!navigator.userAgent.includes('Firefox')) {
+      document.body.classList.add('no-vignette');
+    }
+
     const display = document.getElementById('display');
     const label = document.getElementById('label');
     const pausedDot = document.getElementById('pausedDot');
