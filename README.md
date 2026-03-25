@@ -2,6 +2,14 @@
 
 Minimalistisk studioklocka för sändningsbruk. Visar stor, tydlig tid på mörk bakgrund — perfekt att köra i helskärm på en studioskärm.
 
+| Pre-show | Sändning |
+|---|---|
+| ![Pre-show nedräkning](docs/screenshot-2026-03-25_21-52-26.png) | ![Sändning live](docs/screenshot-2026-03-25_21-53-15.png) |
+
+| Admin — standby | Admin — under sändning |
+|---|---|
+| ![Admin standby](docs/screenshot-2026-03-25_21-54-01.png) | ![Admin live](docs/screenshot-2026-03-25_21-53-33.png) |
+
 ## Funktioner
 
 - **Faser** — pre-show nedräkning → sändning → idle med tydliga visuella övergångar
