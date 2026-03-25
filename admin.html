@@ -470,7 +470,7 @@
       // Statusdot
       statusDot.className = 'dot';
       if (s.phase === 'broadcast') {
-        if (s.segmentOvertime) {
+        if (s.segmentOvertime && s.displayMode === 'countdown') {
           statusDot.classList.add('overtime');
           statusText.textContent = 'övertid';
         } else if (s.broadcastPaused) {
