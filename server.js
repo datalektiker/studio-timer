@@ -168,6 +168,20 @@ function resetSegment(minutes) {
   broadcast(getState());
 }
 
+// --- Admin auth ---
+const ADMIN_PASS = process.env.ADMIN_PASS;
+app.use('/admin.html', (req, res, next) => {
+  if (!ADMIN_PASS) return next();
+  const auth = req.headers.authorization;
+  if (auth) {
+    const [, b64] = auth.split(' ');
+    const [, pass] = Buffer.from(b64, 'base64').toString().split(':');
+    if (pass === ADMIN_PASS) return next();
+  }
+  res.set('WWW-Authenticate', 'Basic realm="Studio Admin"');
+  res.status(401).send('Unauthorized');
+});
+
 // --- Static files ---
 app.use(express.static(__dirname));
 
