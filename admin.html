@@ -240,28 +240,6 @@
 
     .custom-time button:hover { background: var(--border); }
 
-    /* API */
-    .api-info {
-      margin-top: 3rem;
-      padding: 1.5rem;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-    }
-
-    .api-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 0.4rem 0;
-    }
-
-    .api-row code {
-      font-family: 'IBM Plex Mono', monospace;
-      color: var(--text-dim);
-      font-size: 0.75rem;
-    }
-
-    .api-row span { color: var(--text-dim); font-size: 0.75rem; }
   </style>
 </head>
 <body>
@@ -317,8 +295,6 @@
       </div>
     </div>
 
-    <hr>
-
     <!-- Visningsläge — döljs under sändning -->
     <div class="section" id="section-mode">
       <div class="section-title">Visningsläge</div>
@@ -349,20 +325,12 @@
       </div>
     </div>
 
-    <!-- API -->
-    <div class="api-info">
-      <div class="section-title" style="margin-top:0;">Companion / Stream Deck</div>
-      <div class="api-row"><code>/api/preshow/start</code><span>Starta pre-show nedräkning</span></div>
-      <div class="api-row"><code>/api/broadcast/start</code><span>Starta sändning direkt</span></div>
-      <div class="api-row"><code>/api/broadcast/pause</code><span>Pausa sändning</span></div>
-      <div class="api-row"><code>/api/broadcast/resume</code><span>Återuppta sändning</span></div>
-      <div class="api-row"><code>/api/broadcast/stop</code><span>Avsluta sändning</span></div>
-    </div>
   </div>
 
   <script>
     let ws;
     let currentState = null;
+    let segmentChosen = false;
 
     const statusPhase = document.getElementById('statusPhase');
     const statusTime  = document.getElementById('statusTime');
@@ -503,7 +471,7 @@
         btn.classList.toggle('active', parseInt(btn.dataset.minutes) * 60 === s.segmentTotal);
       });
 
-      // Tema-toggle
+      updateStartButtons();
     }
 
     function send(action, extra) {
@@ -519,17 +487,34 @@
 
     function setResume(seconds) { send('resume.set', { seconds }); }
     function setPreshow(seconds) { send('preshow.set', { seconds }); }
-    function setMode(mode) { send('mode', { mode }); }
+    function setMode(mode) {
+      if (mode === 'countdown') segmentChosen = false;
+      send('mode', { mode });
+      updateStartButtons();
+    }
+
+    function updateStartButtons() {
+      const needsSegment = currentState && currentState.displayMode === 'countdown' && !segmentChosen;
+      document.querySelectorAll('#section-idle .btn-full').forEach(btn => {
+        btn.disabled = needsSegment;
+        btn.style.opacity = needsSegment ? '0.35' : '';
+      });
+    }
+
     function setSegment(minutes) {
+      segmentChosen = true;
       send('segment.set', { minutes });
       document.getElementById('customMin').value = '';
+      updateStartButtons();
     }
 
     function setCustom() {
       const input = document.getElementById('customMin');
       const m = parseInt(input.value);
       if (!m || m < 1) return;
+      segmentChosen = true;
       send('segment.set', { minutes: m });
+      updateStartButtons();
       const btn = document.getElementById('customSetBtn');
       btn.textContent = '✓';
       btn.style.color = 'var(--green)';

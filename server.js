@@ -90,6 +90,8 @@ function startBroadcast() {
   stopInterval();
   state.phase = 'broadcast';
   state.elapsedSeconds = 0;
+  state.segmentRemaining = state.segmentTotal;
+  state.segmentOvertime = false;
   state.segmentRunning = true;
   startInterval();
   broadcast(getState());
